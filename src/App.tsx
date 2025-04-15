@@ -1,5 +1,3 @@
-// Level 3 - Full Workflow Builder with Action Nodes and If/Else Nodes using React Flow
-
 import React, { useCallback, useState } from 'react';
 import {
   ReactFlow,
@@ -8,39 +6,59 @@ import {
   useNodesState,
   useEdgesState,
   addEdge,
+  Handle,
   Node as FlowNode,
   Edge,
   Position,
   Connection,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import CustomEdge from './CustomEdge';
+
+const edgeTypes = {
+  editableEdge: CustomEdge,
+};
 
 let nodeId = 3;
 
 const ActionNode = ({ data }: any) => {
   return (
-    <div style={{ padding: 10, border: '1px solid #888', borderRadius: 4 }}>
-      <input
-        style={{ fontSize: 14 }}
-        value={data.label}
-        onChange={(e) => data.onChange?.(e.target.value)}
-      />
-      <button onClick={data.onDelete} style={{ marginLeft: 8 }}>x</button>
+    <div
+      style={{
+        padding: '10px 20px',
+        borderRadius: '4px',
+        border: '1px solid #888',
+        backgroundColor: '#fff',
+        fontWeight: 'bold',
+        textAlign: 'center',
+        minWidth: '120px',
+        position: 'relative',
+      }}
+    >
+      {data.label}
+      <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
     </div>
   );
 };
 
 const IfElseNode = ({ data }: any) => {
   return (
-    <div style={{ padding: 10, border: '2px dashed #007acc', borderRadius: 4 }}>
-      <strong>If/Else:</strong>
-      <input
-        style={{ fontSize: 14, marginLeft: 6 }}
-        value={data.label}
-        onChange={(e) => data.onChange?.(e.target.value)}
-      />
-      <button onClick={data.onAddBranch} style={{ marginLeft: 8 }}>+Branch</button>
-      <button onClick={data.onDelete} style={{ marginLeft: 4 }}>x</button>
+    <div
+      style={{
+        padding: '10px 20px',
+        borderRadius: '4px',
+        border: '1px solid #888',
+        backgroundColor: '#fff',
+        fontWeight: 'bold',
+        textAlign: 'center',
+        minWidth: '120px',
+        position: 'relative',
+      }}
+    >
+      {data.label}
+      <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
     </div>
   );
 };
@@ -51,6 +69,9 @@ const nodeTypes = {
 };
 
 function App() {
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [tempNodeName, setTempNodeName] = useState('');
+
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([
     {
       id: 'start',
@@ -73,58 +94,20 @@ function App() {
       id: 'start-end',
       source: 'start',
       target: 'end',
-      label: '+',
+      type: 'editableEdge',
+      data: {
+        onClick: (id: string) => setSelectedEdgeId(id),
+      },
     },
   ]);
 
-  const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
-
-  const addNode = (type: 'actionNode' | 'ifElseNode') => {
-    const newId = `node-${nodeId++}`;
-    const y = 100 + nodes.length * 80;
-
-    const newNode: FlowNode = {
-      id: newId,
-      type,
-      position: { x: 250, y },
-      data: {
-        label: type === 'actionNode' ? `Action Node` : `If Node`,
-        onDelete: () => {
-          setNodes((nds) => nds.filter((n) => n.id !== newId));
-          setEdges((eds) => eds.filter((e) => e.source !== newId && e.target !== newId));
-        },
-        onChange: (label: string) => {
-          setNodes((nds) =>
-            nds.map((n) => (n.id === newId ? { ...n, data: { ...n.data, label } } : n))
-          );
-        },
-        onAddBranch: type === 'ifElseNode' ? () => {
-          const branchId = `branch-${nodeId++}`;
-          setNodes((nds) => [
-            ...nds,
-            {
-              id: branchId,
-              type: 'default',
-              position: { x: 100, y: y + 80 },
-              data: { label: `Branch ${branchId}` },
-            },
-          ]);
-        } : undefined,
-      },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
-    };
-
-    setNodes((nds) => [...nds, newNode]);
-    setEdges((eds) => [...eds, { id: `e-${newId}-end`, source: newId, target: 'end', type: 'smoothstep' }]);
-  };
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    [setEdges]
+  );
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
-      <div style={{ padding: 10 }}>
-        <button onClick={() => addNode('actionNode')}>Add Action Node</button>
-        <button onClick={() => addNode('ifElseNode')} style={{ marginLeft: 8 }}>Add If/Else Node</button>
-      </div>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -132,11 +115,120 @@ function App() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
       >
         <Background />
         <Controls />
       </ReactFlow>
+
+      {selectedEdgeId && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            height: '100%',
+            width: '25vw',
+            background: '#f9f9f9',
+            borderLeft: '1px solid #ccc',
+            padding: '24px',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>Insert Action Node</h3>
+          <label style={{ fontWeight: 'bold' }}>Action Name:</label>
+          <input
+            value={tempNodeName}
+            onChange={(e) => setTempNodeName(e.target.value)}
+            placeholder="input"
+            style={{
+              padding: '10px',
+              fontSize: '16px',
+              border: '1px solid #aaa',
+              borderRadius: '4px',
+            }}
+          />
+          <div style={{ marginTop: 'auto' }}>
+            <button
+              onClick={() => {
+                if (!selectedEdgeId) return;
+                const edgeToReplace = edges.find((e) => e.id === selectedEdgeId);
+                if (!edgeToReplace) return;
+
+                const { source, target } = edgeToReplace;
+                const newId = `node-${nodeId++}`;
+                const sourceNode = nodes.find((n) => n.id === source);
+                const targetNode = nodes.find((n) => n.id === target);
+                const midX = 250;
+                const midY =
+                  ((sourceNode?.position.y ?? 0) + (targetNode?.position.y ?? 0)) / 2 || 200;
+
+                const newNode: FlowNode = {
+                  id: newId,
+                  type: 'actionNode',
+                  position: { x: midX, y: midY },
+                  data: {
+                    label: tempNodeName || `Action ${newId}`,
+                  },
+                  sourcePosition: Position.Bottom,
+                  targetPosition: Position.Top,
+                };
+
+                setNodes((nds) => [...nds, newNode]);
+                setEdges((eds) =>
+                  eds
+                    .filter((e) => e.id !== selectedEdgeId)
+                    .concat([
+                      {
+                        id: `${source}-${newId}`,
+                        source,
+                        target: newId,
+                        type: 'editableEdge',
+                        data: { onClick: (id: string) => setSelectedEdgeId(id) },
+                      },
+                      {
+                        id: `${newId}-${target}`,
+                        source: newId,
+                        target,
+                        type: 'editableEdge',
+                        data: { onClick: (id: string) => setSelectedEdgeId(id) },
+                      },
+                    ])
+                );
+                setSelectedEdgeId(null);
+                setTempNodeName('');
+              }}
+              style={{
+                background: '#007bff',
+                color: '#fff',
+                border: 'none',
+                padding: '10px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                marginRight: '10px',
+              }}
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setSelectedEdgeId(null)}
+              style={{
+                padding: '10px 16px',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                background: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
