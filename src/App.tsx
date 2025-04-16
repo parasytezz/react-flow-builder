@@ -21,47 +21,45 @@ const edgeTypes = {
 
 let nodeId = 3;
 
-const ActionNode = ({ data }: any) => {
-  return (
-    <div
-      style={{
-        padding: '10px 20px',
-        borderRadius: '4px',
-        border: '1px solid #888',
-        backgroundColor: '#fff',
-        fontWeight: 'bold',
-        textAlign: 'center',
-        minWidth: '120px',
-        position: 'relative',
-      }}
-    >
-      {data.label}
-      <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
-      <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
-    </div>
-  );
-};
+const ActionNode = ({ data, id }: any) => (
+  <div
+    onClick={() => data.onClick?.(id)}
+    style={{
+      padding: '10px 20px',
+      borderRadius: '4px',
+      border: '1px solid #888',
+      backgroundColor: '#fff',
+      fontWeight: 'bold',
+      textAlign: 'center',
+      minWidth: '110px',
+      position: 'relative',
+    }}
+  >
+    {data.label}
+    <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
+    <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
+  </div>
+);
 
-const IfElseNode = ({ data }: any) => {
-  return (
-    <div
-      style={{
-        padding: '10px 20px',
-        borderRadius: '4px',
-        border: '1px solid #888',
-        backgroundColor: '#fff',
-        fontWeight: 'bold',
-        textAlign: 'center',
-        minWidth: '120px',
-        position: 'relative',
-      }}
-    >
-      {data.label}
-      <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
-      <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
-    </div>
-  );
-};
+const IfElseNode = ({ data, id }: any) => (
+  <div
+    onClick={() => data.onClick?.(id)}
+    style={{
+      padding: '10px 20px',
+      borderRadius: '4px',
+      border: '1px solid #888',
+      backgroundColor: '#fff',
+      fontWeight: 'bold',
+      textAlign: 'center',
+      minWidth: '110px',
+      position: 'relative',
+    }}
+  >
+    {data.label}
+    <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
+    <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
+  </div>
+);
 
 const nodeTypes = {
   actionNode: ActionNode,
@@ -70,7 +68,9 @@ const nodeTypes = {
 
 function App() {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [tempNodeName, setTempNodeName] = useState('');
+  const [selectedNodeType, setSelectedNodeType] = useState<'actionNode' | 'ifElseNode' | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([
     {
@@ -101,10 +101,60 @@ function App() {
     },
   ]);
 
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
+  const onConnect = useCallback((params: Connection) => {
+    setEdges((eds) => addEdge({ ...params, type: 'editableEdge' }, eds));
+  }, [setEdges]);
+
+  const insertNodeBetween = (type: 'actionNode' | 'ifElseNode') => {
+    if (!selectedEdgeId) return;
+
+    const edgeToReplace = edges.find((e) => e.id === selectedEdgeId);
+    if (!edgeToReplace) return;
+
+    const { source, target } = edgeToReplace;
+    const newId = `node-${nodeId++}`;
+    const sourceNode = nodes.find((n) => n.id === source);
+    const targetNode = nodes.find((n) => n.id === target);
+    const midX = 250;
+    const midY = ((sourceNode?.position.y ?? 0) + (targetNode?.position.y ?? 0)) / 2 || 200;
+
+    const newNode: FlowNode = {
+      id: newId,
+      type,
+      position: { x: midX, y: midY },
+      data: {
+        label: tempNodeName || `${type === 'actionNode' ? 'Action' : 'If/Else'} ${newId}`,
+        onClick: (id: string) => setSelectedNodeId(id),
+      },
+      sourcePosition: Position.Bottom,
+      targetPosition: Position.Top,
+    };
+
+    setNodes((nds) => [...nds, newNode]);
+    setEdges((eds) =>
+      eds
+        .filter((e) => e.id !== selectedEdgeId)
+        .concat([
+          {
+            id: `${source}-${newId}`,
+            source,
+            target: newId,
+            type: 'editableEdge',
+            data: { onClick: (id: string) => setSelectedEdgeId(id) },
+          },
+          {
+            id: `${newId}-${target}`,
+            source: newId,
+            target,
+            type: 'editableEdge',
+            data: { onClick: (id: string) => setSelectedEdgeId(id) },
+          },
+        ])
+    );
+    setSelectedEdgeId(null);
+    setTempNodeName('');
+    setSelectedNodeType(null);
+  };
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
@@ -122,7 +172,7 @@ function App() {
         <Controls />
       </ReactFlow>
 
-      {selectedEdgeId && (
+      {(selectedEdgeId || selectedNodeId) && (
         <div
           style={{
             position: 'absolute',
@@ -139,94 +189,74 @@ function App() {
             gap: '12px',
           }}
         >
-          <h3 style={{ marginTop: 0 }}>Insert Action Node</h3>
-          <label style={{ fontWeight: 'bold' }}>Action Name:</label>
-          <input
-            value={tempNodeName}
-            onChange={(e) => setTempNodeName(e.target.value)}
-            placeholder="input"
-            style={{
-              padding: '10px',
-              fontSize: '16px',
-              border: '1px solid #aaa',
-              borderRadius: '4px',
-            }}
-          />
-          <div style={{ marginTop: 'auto' }}>
-            <button
-              onClick={() => {
-                if (!selectedEdgeId) return;
-                const edgeToReplace = edges.find((e) => e.id === selectedEdgeId);
-                if (!edgeToReplace) return;
+          {selectedEdgeId && selectedNodeType === null ? (
+            <>
+              <h3>Choose Node Type</h3>
+              <button onClick={() => setSelectedNodeType('actionNode')}>Action Node</button>
+              <button onClick={() => setSelectedNodeType('ifElseNode')}>If/Else Node</button>
+            </>
+          ) : (
+            <>
+              <h3>{selectedNodeId ? 'Edit Node' : 'Insert Node'}</h3>
+              <label>Node Label</label>
+              <input
+                value={tempNodeName}
+                onChange={(e) => setTempNodeName(e.target.value)}
+                placeholder="Node name"
+              />
+              <div style={{ marginTop: 'auto' }}>
+                <button
+                  onClick={() => {
+                    if (selectedNodeId) {
+                      setNodes((nds) =>
+                        nds.map((node) =>
+                          node.id === selectedNodeId ? { ...node, data: { ...node.data, label: tempNodeName } } : node
+                        )
+                      );
+                      setSelectedNodeId(null);
+                      setTempNodeName('');
+                      return;
+                    }
+                    if (selectedEdgeId && selectedNodeType) {
+                      insertNodeBetween(selectedNodeType);
+                    }
+                  }}
+                >
+                  Save
+                </button>
+                <button onClick={() => { setSelectedEdgeId(null); setSelectedNodeId(null); setSelectedNodeType(null); }}>Cancel</button>
+                {selectedNodeId && (
+                  <button
+                    style={{ background: '#dc3545', color: '#fff' }}
+                    onClick={() => {
+                      const nodeToDelete = selectedNodeId;
+                      const incoming = edges.find((e) => e.target === nodeToDelete);
+                      const outgoing = edges.find((e) => e.source === nodeToDelete);
 
-                const { source, target } = edgeToReplace;
-                const newId = `node-${nodeId++}`;
-                const sourceNode = nodes.find((n) => n.id === source);
-                const targetNode = nodes.find((n) => n.id === target);
-                const midX = 250;
-                const midY =
-                  ((sourceNode?.position.y ?? 0) + (targetNode?.position.y ?? 0)) / 2 || 200;
-
-                const newNode: FlowNode = {
-                  id: newId,
-                  type: 'actionNode',
-                  position: { x: midX, y: midY },
-                  data: {
-                    label: tempNodeName || `Action ${newId}`,
-                  },
-                  sourcePosition: Position.Bottom,
-                  targetPosition: Position.Top,
-                };
-
-                setNodes((nds) => [...nds, newNode]);
-                setEdges((eds) =>
-                  eds
-                    .filter((e) => e.id !== selectedEdgeId)
-                    .concat([
-                      {
-                        id: `${source}-${newId}`,
-                        source,
-                        target: newId,
-                        type: 'editableEdge',
-                        data: { onClick: (id: string) => setSelectedEdgeId(id) },
-                      },
-                      {
-                        id: `${newId}-${target}`,
-                        source: newId,
-                        target,
-                        type: 'editableEdge',
-                        data: { onClick: (id: string) => setSelectedEdgeId(id) },
-                      },
-                    ])
-                );
-                setSelectedEdgeId(null);
-                setTempNodeName('');
-              }}
-              style={{
-                background: '#007bff',
-                color: '#fff',
-                border: 'none',
-                padding: '10px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                marginRight: '10px',
-              }}
-            >
-              Save
-            </button>
-            <button
-              onClick={() => setSelectedEdgeId(null)}
-              style={{
-                padding: '10px 16px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                background: '#fff',
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-          </div>
+                      setEdges((eds) => {
+                        const filtered = eds.filter((e) => e.source !== nodeToDelete && e.target !== nodeToDelete);
+                        if (incoming && outgoing) {
+                          return filtered.concat({
+                            id: `${incoming.source}-${outgoing.target}`,
+                            source: incoming.source,
+                            target: outgoing.target,
+                            type: 'editableEdge',
+                            data: { onClick: (id: string) => setSelectedEdgeId(id) },
+                          });
+                        }
+                        return filtered;
+                      });
+                      setNodes((nds) => nds.filter((n) => n.id !== nodeToDelete));
+                      setSelectedNodeId(null);
+                      setTempNodeName('');
+                    }}
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
