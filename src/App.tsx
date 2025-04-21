@@ -41,7 +41,7 @@ const ActionNode = ({ data, id }: any) => (
   </div>
 );
 
-const IfElseNode = ({ data, id }: any) => (
+const IfElseNode = ({ data, id }: { data: { label: string; elseLabel?: string; onClick?: (id: string) => void; branches?: { id: string; label: string }[] }; id: string }) => (
   <div
     onClick={() => data.onClick?.(id)}
     style={{
@@ -121,7 +121,8 @@ function App() {
       data: {
         label: 'If/Else',
         onClick: (id: string) => setSelectedNodeId(id),
-        branches: [], // Track branch node ids
+        branches: [{ id: branch1Id, label: 'Branch 1' }],
+        elseLabel: 'Else'
       },      
       sourcePosition: Position.Bottom,
       targetPosition: Position.Top,
@@ -175,13 +176,13 @@ function App() {
         id: `${ifElseId}-b1`,
         source: ifElseId,
         target: branch1Id,
-        type: 'default', 
+        type: 'default',
       },
       {
         id: `${ifElseId}-else`,
         source: ifElseId,
         target: elseId,
-        type: 'default', 
+        type: 'default',
       },
       {
         id: `${branch1Id}-end`,
@@ -419,7 +420,67 @@ function App() {
             <>
               <h3>{selectedNodeId ? 'Edit Node' : 'Insert Node'}</h3>
               <label>Node Label</label>
-              {selectedNodeType !== 'ifElseNode' && (
+
+              {selectedNodeId && nodes.find(n => n.id === selectedNodeId)?.type === 'ifElseNode' ? (
+                <>
+                  <input
+                    value={tempNodeName}
+                    onChange={(e) => setTempNodeName(e.target.value)}
+                    placeholder="If/Else label"
+                  />
+                  <label>Else Label</label>
+                  <input
+                    value={(nodes.find(n => n.id === selectedNodeId)?.data.elseLabel as string) || ''}
+                    onChange={(e) => {
+                      const elseLabel = e.target.value;
+
+                      setNodes((nds) =>
+                        nds.map((n) => {
+                          if (n.id === selectedNodeId) {
+                            return { ...n, data: { ...n.data, elseLabel } };
+                          }
+
+                          // Also update the ELSE child node label (match on default label "Else")
+                          if (
+                            nodes.find(n => n.id === selectedNodeId)?.data.elseLabel !== undefined &&
+                            n.data.label === nodes.find(n => n.id === selectedNodeId)?.data.elseLabel
+                          ) {
+                            return { ...n, data: { ...n.data, label: elseLabel } };
+                          }
+
+                          return n;
+                        })
+                      );
+                    }}
+                  />
+                  <label>Branches</label>
+                  {Array.isArray(nodes.find(n => n.id === selectedNodeId)?.data.branches) &&
+                    (nodes.find(n => n.id === selectedNodeId)?.data as { branches: { id: string; label: string }[] }).branches.map((branch: { id: string; label: string }, index: number) => (
+                    <input
+                      key={branch.id}
+                      value={branch.label}
+                      onChange={(e) => {
+                        const updatedLabel = e.target.value;
+                        setNodes((nds) =>
+                          nds.map((n) =>
+                            n.id === selectedNodeId
+                              ? {
+                                  ...n,
+                                  data: {
+                                    ...n.data,
+                                    branches: (n.data as { branches: { id: string; label: string }[] }).branches.map((b: any, i: number) =>
+                                      i === index ? { ...b, label: updatedLabel } : b
+                                    ),
+                                  },
+                                }
+                              : n
+                          )
+                        );
+                      }}
+                    />
+                  ))}
+                </>
+              ) : (
                 <input
                   value={tempNodeName}
                   onChange={(e) => setTempNodeName(e.target.value)}
@@ -431,9 +492,26 @@ function App() {
                   onClick={() => {
                     if (selectedNodeId) {
                       setNodes((nds) =>
-                        nds.map((node) =>
-                          node.id === selectedNodeId ? { ...node, data: { ...node.data, label: tempNodeName } } : node
-                        )
+                        nds.map((node) => {
+                          if (node.id !== selectedNodeId) return node;
+                          if (node.type === 'ifElseNode') {
+                            return {
+                              ...node,
+                              data: {
+                                ...node.data,
+                                label: tempNodeName || node.data.label,
+                                // elseLabel and branches already handled in onChange
+                              },
+                            };
+                          }
+                          return {
+                            ...node,
+                            data: {
+                              ...node.data,
+                              label: tempNodeName || node.data.label,
+                            },
+                          };
+                        })
                       );
                       setSelectedNodeId(null);
                       setTempNodeName('');
@@ -446,7 +524,15 @@ function App() {
                 >
                   Save
                 </button>
-                <button onClick={() => { setSelectedEdgeId(null); setSelectedNodeId(null); setSelectedNodeType(null); }}>Cancel</button>
+                <button
+                  onClick={() => {
+                    setSelectedEdgeId(null);
+                    setSelectedNodeId(null);
+                    setSelectedNodeType(null);
+                  }}
+                >
+                  Cancel
+                </button>
                 {selectedNodeId && (
                   <button
                     style={{ background: '#dc3545', color: '#fff' }}
