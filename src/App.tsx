@@ -15,12 +15,14 @@ import {
 import '@xyflow/react/dist/style.css';
 import CustomEdge from './CustomEdge';
 
+// Custom edge type
 const edgeTypes = {
   editableEdge: CustomEdge,
 };
 
-let nodeId = 3;
+let nodeId = 3; // Unique node ID tracker
 
+// Action node component
 const ActionNode = ({ data, id }: any) => (
   <div
     onClick={() => data.onClick?.(id)}
@@ -41,6 +43,7 @@ const ActionNode = ({ data, id }: any) => (
   </div>
 );
 
+// If/Else node component
 const IfElseNode = ({ data, id }: { data: { label: string; elseLabel?: string; onClick?: (id: string) => void; branches?: { id: string; label: string }[] }; id: string }) => (
   <div
     onClick={() => data.onClick?.(id)}
@@ -61,17 +64,20 @@ const IfElseNode = ({ data, id }: { data: { label: string; elseLabel?: string; o
   </div>
 );
 
+// Register custom node types
 const nodeTypes = {
   actionNode: ActionNode,
   ifElseNode: IfElseNode,
 };
 
 function App() {
+  // UI and node/edge state management
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [tempNodeName, setTempNodeName] = useState('');
   const [selectedNodeType, setSelectedNodeType] = useState<'actionNode' | 'ifElseNode' | null>(null);
 
+  // Initial nodes: Start and End
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([
     {
       id: 'start',
@@ -89,6 +95,7 @@ function App() {
     },
   ]);
 
+  // Initial edge
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([
     {
       id: 'start-end',
@@ -101,6 +108,7 @@ function App() {
     },
   ]);
 
+  // Handle connection creation between nodes
   const onConnect = useCallback((params: Connection) => {
     setEdges((eds) => addEdge({ ...params, type: 'editableEdge' }, eds));
   }, [setEdges]);
@@ -366,6 +374,7 @@ function App() {
     setSelectedNodeType(null);
   };
   
+  // Helper function to collect all descendant node IDs from a given start node
   const getAllConnectedNodes = (startId: string, visited = new Set<string>()): Set<string> => {
     if (visited.has(startId)) return visited;
     visited.add(startId);
