@@ -1,46 +1,61 @@
-# Getting Started with Create React App
+# Exabloom Frontend Workflow Builder
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A dynamic React Flow-based workflow editor that allows users to visually build workflows with Action nodes and If/Else branching logic.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- Drag-and-drop visual workflow builder using React Flow
+- Supports:
+  - Action Nodes (customizable)
+  - If/Else Nodes 
+  - Editable labels via a right-hand side panel
+  - Inserting new nodes between existing connections via "+" buttons
+  - Deletion of nodes and automatic flow cleanup
+- Custom editable edges
+- Auto-inserts branch/else structure with each If/Else node
 
-### `npm start`
+## Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- React + TypeScript
+- @xyflow/react (React Flow)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## System Requirements
 
-### `npm test`
+- Node.js 18+
+- npm or yarn
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Local Setup
 
-### `npm run build`
+```bash
+git clone https://github.com/parasytezz/exabloom-frontend.git
+cd exabloom-frontend
+npm install
+npm run dev
+```
+Then open http://localhost:5173 (or whichever port is shown) in your browser.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Key Design Decisions
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- Node/Edge Management: Leveraged React Flow’s useNodesState and useEdgesState hooks for full node/edge state control.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- If/Else Logic: An If/Else node automatically adds a Branch node and Else node for structure clarity. Labels are stored in the parent If/Else node’s data.branches and data.elseLabel.
 
-### `npm run eject`
+- Node Insertion UI: Edge-click "+" buttons make inserting nodes intuitive without cluttering the main canvas.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+- Form Panel: Node editing is strictly done through the right-hand form to keep node visuals clean.
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Assumptions Made
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+- All workflows must begin with a Start node and end with an End node.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+- Branch nodes and Else nodes cannot be interacted with directly — they are controlled by the If/Else node.
 
-## Learn More
+- Branches and Else paths are represented using preconfigured End nodes to maintain structural flow.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Known Limitations
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- Custom validation (e.g., checking for disconnected nodes) not implemented.
+
+- Multiple branching beyond 2 is not yet supported.
+
+- Flow save/export is not yet integrated.
